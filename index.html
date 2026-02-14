@@ -3,29 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>호두네 가계부</title>
+    <title>2026 호두네 가계부 🐾</title>
     <link href="https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; background: #FFFBEB; }
+        body { margin: 0; padding: 0; background: #FFFBEB; font-family: 'Gamja Flower', cursive; }
+        #root { display: flex; justify-content: center; }
+        /* 스크롤바 숨기기 */
+        ::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        // 🚨 여기에 이전에 완성한 budget-app.jsx의 코드를 전체 복사해서 붙여넣으세요!
-        // (주의: 맨 위 import React... 문구는 반드시 지워야 합니다.)
-
         const { useState, useMemo, useEffect } = React;
 
         function BudgetApp() {
-            /* ... 여기에 코드 내용 ... */
-        }
+            const [transactions, setTransactions] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [tab, setTab] = useState("home");
+            const [month, setMonth] = useState("02"); // 기본 2월
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<BudgetApp />);
-    </script>
-</body>
-</html>
+            useEffect(() => {
+                // 🚨 호민님의 Apps Script URL
+                const SHEET_URL = "https://script.google.com/macros/s/AKfycbycIvM347OIQzgBYW3Mf8FrpzWyjlwbJ19ZKvP-C3Ty5cDmQZO_6PQd351lQIdvRh2P/exec"; 
+
+                fetch(SHEET_URL)
+                    .then(res => res.json())
+                    .then(data => {
+                        const formattedData = data.map((item, index) => ({
+                            id: index,
+                            m: item.month ? item.month.replace("월", "").padStart(2, '0') : "01",
+                            t: item.구분 || "기타",
+                            d: item.일자 || "",
+                            desc: item.내용 || "내용 없음",
+                            cat: item.분류 || "기타",
+                            amt: Number(item.금액) || 0,
+                            pay: item.지출방식 || ""
+                        }));
+                        setTransactions(formattedData);
+                        setLoading(false);
+                    })
+                    .catch(err => {
+                        console.error("데이터 가져오기 실패:", err);
+                        setLoading(false);
+                    });
+            }, []);
+
+            const filtered = useMemo(() => {
+                return transactions.filter(t => {
+                    const isMonthMatch = t.m === month;
+                    if (!isMonthMatch) return false;
+                    if (tab === "home") return true;
+                    if (tab === "food") return t.cat.includes("Groceries") || t.cat.includes("Dining");
+                    if (tab === "pet") return t.cat.includes("Pet");
+                    if (tab === "etc") return !t.cat.includes("Groceries") && !t.cat.includes("Dining") && !t.cat.includes("Pet");
+                    return true;
+                });
+            }, [tab, month, transactions]);
+
+            const totalSpent = useMemo(() => filtered.reduce((acc, cur) => acc + cur.amt, 0), [filtered]);
